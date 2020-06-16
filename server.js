@@ -10,7 +10,6 @@ rooms = [];
 // Store all of the sockets and their respective room numbers
 userrooms = {}
 
-YT3_API_KEY = process.env.YT3_API_KEY;
 DM_API_KEY = process.env.DM_API_KEY;
 
 // Set given room for url parameter
@@ -405,22 +404,12 @@ io.sockets.on('connection', function(socket) {
             var title = ""
             switch (io.sockets.adapter.rooms['room-' + socket.roomnum].currPlayer) {
                 case 0:
-                    // See yt.js file
-                    socket.emit('get title', {
+                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.push({
                         videoId: videoId,
-                        user: user,
-                        api_key: YT3_API_KEY
-                    }, function(data) {
-                        videoId = data.videoId
-                        title = data.title
-                        io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.push({
-                            videoId: videoId,
-                            title: title
-                        })
-                        console.log(io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt)
-                        // Update front end
-                        updateQueueVideos()
+                        title: "YouTube"
                     })
+                    console.log(io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt)
+                    updateQueueVideos()
                     break;
                 case 1:
                     io.sockets.adapter.rooms['room-' + socket.roomnum].queue.dm.push({
@@ -439,34 +428,6 @@ io.sockets.on('connection', function(socket) {
                         videoId: videoId,
                         title: title
                     })
-                    break;
-                default:
-                    console.log("Error invalid player id")
-            }
-        }
-    })
-
-    // Enqueue playlist
-    // Gets all of the playlist videos and enqueues them
-    // Only supported for YouTube
-    socket.on('enqueue playlist', function(data) {
-        if (io.sockets.adapter.rooms['room-' + socket.roomnum] !== undefined) {
-            var user = data.user
-            var playlistId = data.playlistId
-            switch (io.sockets.adapter.rooms['room-' + socket.roomnum].currPlayer) {
-                case 0:
-                    // See yt.js file
-                    socket.emit('get playlist videos', {
-                        playlistId: playlistId,
-                        user: user,
-                        api_key: YT3_API_KEY
-                    })
-                    break;
-                case 1:
-                    break;
-                case 2:
-                    break;
-                case 3:
                     break;
                 default:
                     console.log("Error invalid player id")

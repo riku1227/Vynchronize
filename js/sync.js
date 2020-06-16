@@ -225,15 +225,8 @@ function enqueueVideoParse(roomnum) {
 // QueueVideo
 function enqueueVideo(roomnum, rawId) {
     videoId = idParse(rawId)
-    playlistId = playlistParse(rawId)
-
-    if (playlistId != "invalid") {
-      socket.emit('enqueue playlist', {
-          room: roomnum,
-          playlistId: playlistId,
-          user: username
-      })
-    } else if (videoId != "invalid") {
+    
+    if (videoId != "invalid") {
         socket.emit('enqueue video', {
             room: roomnum,
             videoId: videoId,
