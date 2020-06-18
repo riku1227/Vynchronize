@@ -42,7 +42,11 @@ socket.on('changeHostLabel', function(data) {
     var user = data.username
     // Change label
     var hostlabel = document.getElementById('hostlabel')
-    hostlabel.innerHTML = "<i class=\"fas fa-user\"></i> Current Host: " + user
+    if(navigator.language == "ja") {
+        hostlabel.innerHTML = "<i class=\"fas fa-user\"></i> 現在のホスト: " + user
+    } else {
+        hostlabel.innerHTML = "<i class=\"fas fa-user\"></i> Current Host: " + user
+    }
 
     // Generate notify alert
     // CANNOT CALL IT HERE

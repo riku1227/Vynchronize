@@ -2,17 +2,6 @@
 <html lang="en">
 
 <head>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-
-        function gtag() {
-            dataLayer.push(arguments);
-        }
-        gtag('js', new Date());
-
-        gtag('config', 'UA-121783460-1');
-    </script>
-
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
     <meta name="description" content="">
@@ -126,7 +115,7 @@
             <div class="row my-4" style="margin-top: 0px !important;">
                 <div class="col-lg-7">
 
-                    <div class="nonmobile-hide"><b>Note: </b>Only the host can control the video using the native video player controls </div>
+                    <div id="note_host_only_controll_player" class="nonmobile-hide"><b>Note: </b>Only the host can control the video using the native video player controls </div>
                     <div class="mobile-hide"><b>Mobile User</b>, please play the video once manually to give the browser permission to control the video player. </div>
                     <!-- <hr style="height:0pt; visibility:hidden;" /> -->
 
@@ -452,6 +441,8 @@
             var $roomnum = $('#roomnum');
 
             var $vidlist = $('#vidlist');
+
+            setupL10N();
 
             //   function send_message() {
             //       socket.emit('send message', $message.val());
@@ -791,6 +782,7 @@
     <script src="js/host.js"></script>
     <script src="js/events.js"></script>
     <script src="js/notify.js"></script>
+    <script src="js/l10n.js"></script>
 
     <!-- Youtube -->
     <script src="js/yt.js"></script>
