@@ -4,6 +4,7 @@
   "description": "Video synchronization app",
   "main": "server.js",
   "scripts": {
+    "start": "node server",
     "test": "jshint test.js"
   },
   "repository": {
