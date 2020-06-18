@@ -392,6 +392,14 @@ function changeSinglePlayer(playerId) {
     })
 }
 
+function interrupt(idx, isInterrupt) {
+    socket.emit("interrupt video", {
+        index: idx,
+        time: player.getCurrentTime(),
+        isInterrupt: isInterrupt
+    });
+}
+
 
 
 //------------------------------//
@@ -616,7 +624,14 @@ socket.on('changeVideoClient', function(data) {
     // Auto sync with host after 1000ms of changing video
     setTimeout(function() {
         console.log("resyncing with host after video change")
-        socket.emit('sync host', {});
+        if(data.playTime !== undefined) {
+            player.seekTo(data.playTime, true);
+        }
+
+        setTimeout(function() {
+            console.log("CurrentTime: " + player.getCurrentTime());
+            socket.emit('sync host', {});
+        }, 1000);
     }, 1000);
 
 });

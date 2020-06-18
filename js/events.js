@@ -158,7 +158,8 @@ function playNext(roomnum) {
             socket.emit('change video', {
                 room: roomnum,
                 videoId: videoId,
-                time: 0
+                time: 0,
+                playTime: data.playTime
             })
         } else {
             playNextAlert()

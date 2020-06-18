@@ -206,6 +206,7 @@ io.sockets.on('connection', function(socket) {
             // Set an empty queue
             io.sockets.adapter.rooms['room-' + socket.roomnum].queue = {
                 yt: [],
+                yt_interrupt: [],
                 dm: [],
                 vimeo: [],
                 html5: []
@@ -340,13 +341,18 @@ io.sockets.on('connection', function(socket) {
     });
 
     socket.on('play next', function(data, callback) {
-        var videoId = "QUEUE IS EMPTY"
+        var videoId = "QUEUE IS EMPTY";
+        let playTime = 0;
         if (io.sockets.adapter.rooms['room-' + socket.roomnum] !== undefined) {
             switch (io.sockets.adapter.rooms['room-' + socket.roomnum].currPlayer) {
                 case 0:
-                    if (io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.length > 0) {
+                    if(io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt.length > 0) {
+                        const ytiObject = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt.shift();
+                        videoId = ytiObject.videoId;
+                        playTime = ytiObject.playTime;
+                    } else if (io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.length > 0) {
                         // Gets the video id from the room object
-                        videoId = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.shift().videoId
+                        videoId = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.shift().videoId;
                     }
                     break;
                 case 1:
@@ -371,7 +377,8 @@ io.sockets.on('connection', function(socket) {
             // Remove video from the front end
             updateQueueVideos()
             callback({
-                videoId: videoId
+                videoId: videoId,
+                playTime: playTime
             })
         }
     });
@@ -440,7 +447,8 @@ io.sockets.on('connection', function(socket) {
         if (io.sockets.adapter.rooms['room-' + socket.roomnum] !== undefined) {
             switch (io.sockets.adapter.rooms['room-' + socket.roomnum].currPlayer) {
                 case 0:
-                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt = []
+                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt = [];
+                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt = [];
                     break;
                 case 1:
                     io.sockets.adapter.rooms['room-' + socket.roomnum].queue.dm = []
@@ -464,7 +472,11 @@ io.sockets.on('connection', function(socket) {
             var idx = data.idx
             switch (io.sockets.adapter.rooms['room-' + socket.roomnum].currPlayer) {
                 case 0:
-                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.splice(idx, 1)
+                    if(data.isInterrupt) {
+                        io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt.splice(idx, 1);
+                    } else {
+                        io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.splice(idx, 1);
+                    }
                     break;
                 case 1:
                     io.sockets.adapter.rooms['room-' + socket.roomnum].queue.dm.splice(idx, 1)
@@ -485,12 +497,20 @@ io.sockets.on('connection', function(socket) {
     // Play a specific video from queue
     socket.on('play at', function(data, callback) {
         if (io.sockets.adapter.rooms['room-' + socket.roomnum] !== undefined) {
-            var idx = data.idx
-            var videoId = ""
+            var idx = data.idx;
+            var videoId = "";
+            let playTime = 0;
             switch (io.sockets.adapter.rooms['room-' + socket.roomnum].currPlayer) {
                 case 0:
-                    videoId = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt[idx].videoId
-                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.splice(idx, 1)
+                    if(data.isInterrupt) {
+                        videoId = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt[idx].videoId;
+                        playTime = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt[idx].playTime;
+
+                        io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt.splice(idx, 1);
+                    } else {
+                        videoId = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt[idx].videoId
+                        io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.splice(idx, 1)
+                    }
                     break;
                 case 1:
                     io.sockets.adapter.rooms['room-' + socket.roomnum].queue.dm.splice(idx, 1)
@@ -506,7 +526,8 @@ io.sockets.on('connection', function(socket) {
             }
             updateQueueVideos()
             callback({
-                videoId: videoId
+                videoId: videoId,
+                playTime: playTime
             })
         }
     })
@@ -554,8 +575,14 @@ io.sockets.on('connection', function(socket) {
                     console.log("Error invalid player id")
             }
 
+            var playTime = 0;
+            if(data.playTime !== undefined) {
+                playTime = data.playTime;
+            }
+
             io.sockets.in("room-" + roomnum).emit('changeVideoClient', {
-                videoId: videoId
+                videoId: videoId,
+                playTime: playTime
             });
 
             // If called from previous video, do a callback to seek to the right time
@@ -896,21 +923,80 @@ io.sockets.on('connection', function(socket) {
 
                 console.log("swap queue (prev: " + prevIndex + ", next: " + nextIndex + ")");
 
-                //Return when array index out of bounds
-                var queueCount = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.length;
-                if(prevIndex == -1 || nextIndex == -1) {
-                    return;
-                } else if (prevIndex >= queueCount || nextIndex >= queueCount) {
-                    return;
+                if(data.isInterrupt) {
+                    //Return when array index out of bounds
+                    var queueCount = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt.length;
+                    if(prevIndex == -1 || nextIndex == -1) {
+                        return;
+                    } else if (prevIndex >= queueCount || nextIndex >= queueCount) {
+                        return;
+                    }
+
+                    //Get swap objects
+                    var prevObject = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt[prevIndex];
+                    var nextObject = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt[nextIndex];
+
+                    //Swap
+                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt[prevIndex] = nextObject;
+                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt[nextIndex] = prevObject;
+                } else {
+                    //Return when array index out of bounds
+                    var queueCount = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.length;
+                    if(prevIndex == -1 || nextIndex == -1) {
+                        return;
+                    } else if (prevIndex >= queueCount || nextIndex >= queueCount) {
+                        return;
+                    }
+
+                    //Get swap objects
+                    var prevObject = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt[prevIndex];
+                    var nextObject = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt[nextIndex];
+
+                    //Swap
+                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt[prevIndex] = nextObject;
+                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt[nextIndex] = prevObject;
                 }
 
-                //Get swap objects
-                var prevObject = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt[prevIndex];
-                var nextObject = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt[nextIndex];
+                updateQueueVideos();
+            }
+        }
+    });
 
-                //Swap
-                io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt[prevIndex] = nextObject;
-                io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt[nextIndex] = prevObject;
+    socket.on("interrupt video", function(data) {
+        if (io.sockets.adapter.rooms['room-' + socket.roomnum] !== undefined) {
+            if(io.sockets.adapter.rooms['room-' + socket.roomnum].currPlayer == 0) {
+                console.log(data);
+                const currentVideo = io.sockets.adapter.rooms['room-' + socket.roomnum].currVideo.yt;
+                io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt.unshift(
+                    {
+                        videoId: currentVideo,
+                        title: "YouTube",
+                        playTime: data.time
+                    }
+                );
+
+                let interruptVideoID = "";
+                let interruptPlayTime = 0
+                if(data.isInterrupt) {
+                    console.log("AAAAA: " + io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt[data.index + 1].videoId);
+                    console.log("BBBBB: " + io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt[data.index + 1].playTime);
+                    interruptVideoID = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt[data.index + 1].videoId;
+                    interruptPlayTime = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt[data.index + 1].playTime;
+
+                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt_interrupt.splice(data.index + 1, 1);
+                } else {
+                    interruptVideoID = io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt[data.index].videoId;
+
+                    io.sockets.adapter.rooms['room-' + socket.roomnum].queue.yt.splice(data.index, 1);
+                }
+
+                io.sockets.adapter.rooms['room-' + socket.roomnum].currVideo.yt = interruptVideoID;
+
+
+                io.sockets.in("room-" + socket.roomnum).emit('changeVideoClient', {
+                    videoId: interruptVideoID,
+                    playTime: interruptPlayTime
+                });
 
                 updateQueueVideos();
             }
