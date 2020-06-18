@@ -219,7 +219,8 @@ function playlistParse(videoId) {
 
 function enqueueVideoParse(roomnum) {
   var videoId = document.getElementById("inputVideoId").value;
-  enqueueVideo(roomnum, videoId)
+  document.getElementById("inputVideoId").value = "";
+  enqueueVideo(roomnum, videoId);
 }
 
 // QueueVideo
